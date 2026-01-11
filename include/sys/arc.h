@@ -106,6 +106,7 @@ struct arc_prune {
 	uint64_t		p_adjust;
 	list_node_t		p_node;
 	zfs_refcount_t		p_refcnt;
+	hrtime_t		p_last_dispatch;
 };
 
 typedef enum arc_strategy {

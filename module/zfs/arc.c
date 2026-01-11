@@ -476,6 +476,11 @@ static uint_t zfs_arc_lotsfree_percent = 10;
  */
 static int zfs_arc_prune_task_threads = 1;
 
+/*
+ * Minimum interval between prune task dispatches for the same callback (ms)
+ */
+static int zfs_arc_prune_min_interval_ms = 100;
+
 /* Used by spa_export/spa_destroy to flush the arc asynchronously */
 static taskq_t *arc_flush_taskq;
 
@@ -6459,6 +6464,8 @@ arc_add_prune_callback(arc_prune_func_t *func, void *private)
 	p = kmem_alloc(sizeof (*p), KM_SLEEP);
 	p->p_pfunc = func;
 	p->p_private = private;
+	p->p_adjust = 0;
+	p->p_last_dispatch = 0;
 	list_link_init(&p->p_node);
 	zfs_refcount_create(&p->p_refcnt);
 
@@ -6518,6 +6525,7 @@ static void
 arc_prune_async(uint64_t adjust)
 {
 	arc_prune_t *ap;
+	hrtime_t now = gethrtime();
 
 	mutex_enter(&arc_prune_mtx);
 	for (ap = list_head(&arc_prune_list); ap != NULL;
@@ -6526,8 +6534,13 @@ arc_prune_async(uint64_t adjust)
 		if (zfs_refcount_count(&ap->p_refcnt) >= 2)
 			continue;
 
+		if (ap->p_last_dispatch != 0 && now - ap->p_last_dispatch <
+		    MSEC2NSEC(zfs_arc_prune_min_interval_ms))
+			continue;
+
 		zfs_refcount_add(&ap->p_refcnt, ap->p_pfunc);
 		ap->p_adjust = adjust;
+		ap->p_last_dispatch = now;
 		if (taskq_dispatch(arc_prune_taskq, arc_prune_task,
 		    ap, TQ_SLEEP) == TASKQID_INVALID) {
 			(void) zfs_refcount_remove(&ap->p_refcnt, ap->p_pfunc);
