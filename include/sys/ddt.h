@@ -281,6 +281,7 @@ typedef struct {
  */
 typedef struct {
 	kmutex_t	ddt_lock;	/* protects changes to all fields */
+	krwlock_t	ddt_op_lock;	/* protects ddt_ops calls */
 	avl_tree_t	ddt_tree;	/* "live" (changed) entries this txg */
 	avl_tree_t	ddt_repair_tree;	/* entries being repaired */
 

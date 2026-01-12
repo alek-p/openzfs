@@ -403,6 +403,7 @@ ddt_object_create(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
 
 	ddt_object_name(ddt, type, class, name);
 
+	rw_enter(&ddt->ddt_op_lock, RW_WRITER);
 	ASSERT0(*objectp);
 	VERIFY0(ddt_ops[type]->ddt_op_create(os, objectp, tx, prehash));
 	ASSERT3U(*objectp, !=, 0);
@@ -418,6 +419,7 @@ ddt_object_create(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
 	VERIFY0(zap_add(os, spa->spa_ddt_stat_object, name,
 	    sizeof (uint64_t), sizeof (ddt_histogram_t) / sizeof (uint64_t),
 	    &ddt->ddt_histogram[type][class], tx));
+	rw_exit(&ddt->ddt_op_lock);
 }
 
 static void
@@ -434,9 +436,11 @@ ddt_object_destroy(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
 
 	ddt_object_name(ddt, type, class, name);
 
+	rw_enter(&ddt->ddt_op_lock, RW_WRITER);
 	ASSERT3U(*objectp, !=, 0);
 	ASSERT(ddt_histogram_empty(&ddt->ddt_histogram[type][class]));
-	VERIFY0(ddt_object_count(ddt, type, class, &count));
+	VERIFY0(ddt_ops[type]->ddt_op_count(ddt->ddt_object_dnode[type][class],
+	    &count));
 	VERIFY0(count);
 	VERIFY0(zap_remove(os, ddt->ddt_dir_object, name, tx));
 	VERIFY0(zap_remove(os, spa->spa_ddt_stat_object, name, tx));
@@ -448,6 +452,7 @@ ddt_object_destroy(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
 	memset(&ddt->ddt_object_stats[type][class], 0, sizeof (ddt_object_t));
 
 	*objectp = 0;
+	rw_exit(&ddt->ddt_op_lock);
 }
 
 static int
@@ -545,71 +550,100 @@ static int
 ddt_object_lookup(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     ddt_entry_t *dde)
 {
+	rw_enter(&ddt->ddt_op_lock, RW_READER);
 	dnode_t *dn = ddt->ddt_object_dnode[type][class];
-	if (dn == NULL)
+	if (dn == NULL) {
+		rw_exit(&ddt->ddt_op_lock);
 		return (SET_ERROR(ENOENT));
+	}
 
-	return (ddt_ops[type]->ddt_op_lookup(dn, &dde->dde_key,
-	    dde->dde_phys, DDT_PHYS_SIZE(ddt)));
+	int error = ddt_ops[type]->ddt_op_lookup(dn, &dde->dde_key,
+	    dde->dde_phys, DDT_PHYS_SIZE(ddt));
+	rw_exit(&ddt->ddt_op_lock);
+
+	return (error);
 }
 
 static int
 ddt_object_contains(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     const ddt_key_t *ddk)
 {
+	rw_enter(&ddt->ddt_op_lock, RW_READER);
 	dnode_t *dn = ddt->ddt_object_dnode[type][class];
-	if (dn == NULL)
+	if (dn == NULL) {
+		rw_exit(&ddt->ddt_op_lock);
 		return (SET_ERROR(ENOENT));
+	}
 
-	return (ddt_ops[type]->ddt_op_contains(dn, ddk));
+	int error = ddt_ops[type]->ddt_op_contains(dn, ddk);
+	rw_exit(&ddt->ddt_op_lock);
+
+	return (error);
 }
 
 static void
 ddt_object_prefetch(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     const ddt_key_t *ddk)
 {
+	rw_enter(&ddt->ddt_op_lock, RW_READER);
 	dnode_t *dn = ddt->ddt_object_dnode[type][class];
-	if (dn == NULL)
+	if (dn == NULL) {
+		rw_exit(&ddt->ddt_op_lock);
 		return;
+	}
 
 	ddt_ops[type]->ddt_op_prefetch(dn, ddk);
+	rw_exit(&ddt->ddt_op_lock);
 }
 
 static void
 ddt_object_prefetch_all(ddt_t *ddt, ddt_type_t type, ddt_class_t class)
 {
+	rw_enter(&ddt->ddt_op_lock, RW_READER);
 	dnode_t *dn = ddt->ddt_object_dnode[type][class];
-	if (dn == NULL)
+	if (dn == NULL) {
+		rw_exit(&ddt->ddt_op_lock);
 		return;
+	}
 
 	ddt_ops[type]->ddt_op_prefetch_all(dn);
+	rw_exit(&ddt->ddt_op_lock);
 }
 
 static int
 ddt_object_update(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     const ddt_lightweight_entry_t *ddlwe, dmu_tx_t *tx)
 {
+	rw_enter(&ddt->ddt_op_lock, RW_READER);
 	dnode_t *dn = ddt->ddt_object_dnode[type][class];
 	ASSERT(dn != NULL);
 
-	return (ddt_ops[type]->ddt_op_update(dn, &ddlwe->ddlwe_key,
-	    &ddlwe->ddlwe_phys, DDT_PHYS_SIZE(ddt), tx));
+	int error = ddt_ops[type]->ddt_op_update(dn, &ddlwe->ddlwe_key,
+	    &ddlwe->ddlwe_phys, DDT_PHYS_SIZE(ddt), tx);
+	rw_exit(&ddt->ddt_op_lock);
+
+	return (error);
 }
 
 static int
 ddt_object_remove(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     const ddt_key_t *ddk, dmu_tx_t *tx)
 {
+	rw_enter(&ddt->ddt_op_lock, RW_READER);
 	dnode_t *dn = ddt->ddt_object_dnode[type][class];
 	ASSERT(dn != NULL);
 
-	return (ddt_ops[type]->ddt_op_remove(dn, ddk, tx));
+	int error = ddt_ops[type]->ddt_op_remove(dn, ddk, tx);
+	rw_exit(&ddt->ddt_op_lock);
+
+	return (error);
 }
 
 int
 ddt_object_walk(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     uint64_t *walk, ddt_lightweight_entry_t *ddlwe)
 {
+	rw_enter(&ddt->ddt_op_lock, RW_READER);
 	dnode_t *dn = ddt->ddt_object_dnode[type][class];
 	ASSERT(dn != NULL);
 
@@ -618,8 +652,9 @@ ddt_object_walk(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
 	if (error == 0) {
 		ddlwe->ddlwe_type = type;
 		ddlwe->ddlwe_class = class;
-		return (0);
 	}
+	rw_exit(&ddt->ddt_op_lock);
+
 	return (error);
 }
 
@@ -627,21 +662,31 @@ int
 ddt_object_count(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     uint64_t *count)
 {
+	rw_enter(&ddt->ddt_op_lock, RW_READER);
 	dnode_t *dn = ddt->ddt_object_dnode[type][class];
 	ASSERT(dn != NULL);
 
-	return (ddt_ops[type]->ddt_op_count(dn, count));
+	int error = ddt_ops[type]->ddt_op_count(dn, count);
+	rw_exit(&ddt->ddt_op_lock);
+
+	return (error);
 }
 
 int
 ddt_object_info(ddt_t *ddt, ddt_type_t type, ddt_class_t class,
     dmu_object_info_t *doi)
 {
-	if (!ddt_object_exists(ddt, type, class))
+	rw_enter(&ddt->ddt_op_lock, RW_READER);
+	if (!ddt_object_exists(ddt, type, class)) {
+		rw_exit(&ddt->ddt_op_lock);
 		return (SET_ERROR(ENOENT));
+	}
 
-	return (dmu_object_info(ddt->ddt_os, ddt->ddt_object[type][class],
-	    doi));
+	int error = dmu_object_info(ddt->ddt_os, ddt->ddt_object[type][class],
+	    doi);
+	rw_exit(&ddt->ddt_op_lock);
+
+	return (error);
 }
 
 void
@@ -1694,6 +1739,7 @@ ddt_table_alloc(spa_t *spa, enum zio_checksum c)
 	ddt = kmem_cache_alloc(ddt_cache, KM_SLEEP);
 	memset(ddt, 0, sizeof (ddt_t));
 	mutex_init(&ddt->ddt_lock, NULL, MUTEX_DEFAULT, NULL);
+	rw_init(&ddt->ddt_op_lock, NULL, RW_DEFAULT, NULL);
 	avl_create(&ddt->ddt_tree, ddt_key_compare,
 	    sizeof (ddt_entry_t), offsetof(ddt_entry_t, dde_node));
 	avl_create(&ddt->ddt_repair_tree, ddt_key_compare,
@@ -1748,6 +1794,7 @@ ddt_table_free(ddt_t *ddt)
 	ASSERT0(avl_numnodes(&ddt->ddt_repair_tree));
 	avl_destroy(&ddt->ddt_tree);
 	avl_destroy(&ddt->ddt_repair_tree);
+	rw_destroy(&ddt->ddt_op_lock);
 	mutex_destroy(&ddt->ddt_lock);
 	kmem_cache_free(ddt_cache, ddt);
 }
