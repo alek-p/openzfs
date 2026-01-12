@@ -113,7 +113,7 @@ getextmntent_impl(FILE *fp, struct extmnttab *mp, uint64_t *mnt_id)
 }
 
 int
-getextmntent(const char *path, struct extmnttab *entry, struct stat64 *statbuf)
+zfs_getextmntent(const char *path, struct extmnttab *entry, struct stat64 *statbuf)
 {
 	struct stat64 st;
 	FILE *fp;

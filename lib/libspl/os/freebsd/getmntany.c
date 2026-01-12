@@ -40,7 +40,7 @@
 #include <libzutil.h>
 
 int
-getextmntent(const char *path, struct extmnttab *entry, struct stat64 *statbuf)
+zfs_getextmntent(const char *path, struct extmnttab *entry, struct stat64 *statbuf)
 {
 	struct statfs sfs;
 

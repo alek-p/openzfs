@@ -7650,7 +7650,7 @@ unshare_unmount_path(int op, char *path, int flags, boolean_t is_manual)
 	 * Search for the given (major,minor) pair in the mount table.
 	 */
 
-	if (getextmntent(path, &entry, &statbuf) != 0) {
+	if (zfs_getextmntent(path, &entry, &statbuf) != 0) {
 		if (op == OP_SHARE) {
 			(void) fprintf(stderr, gettext("cannot %s '%s': not "
 			    "currently mounted\n"), cmdname, path);

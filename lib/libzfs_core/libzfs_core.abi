@@ -146,7 +146,7 @@
     <elf-symbol name='get_system_hostid' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='get_timestamp' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='getexecname' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
-    <elf-symbol name='getextmntent' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
+    <elf-symbol name='zfs_getextmntent' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='getmntany' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='getzoneid' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='kmem_asprintf' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
@@ -1629,7 +1629,7 @@
       <parameter type-id='9d424d31' name='mgetp'/>
       <return type-id='95e97e5e'/>
     </function-decl>
-    <function-decl name='getextmntent' mangled-name='getextmntent' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='getextmntent'>
+    <function-decl name='zfs_getextmntent' mangled-name='zfs_getextmntent' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='zfs_getextmntent'>
       <parameter type-id='80f4b756' name='path'/>
       <parameter type-id='394fc496' name='entry'/>
       <parameter type-id='62f7a03d' name='statbuf'/>

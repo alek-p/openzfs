@@ -5258,6 +5258,9 @@ spa_raidz_expand_get_stats(spa_t *spa, pool_raidz_expand_stat_t *pres)
 		pres->pres_reflowed += vre->vre_bytes_copied_pertxg[i];
 	mutex_exit(&vre->vre_lock);
 
+	if (pres->pres_reflowed > pres->pres_to_reflow)
+		pres->pres_to_reflow = pres->pres_reflowed;
+
 	pres->pres_start_time = vre->vre_start_time;
 	pres->pres_end_time = vre->vre_end_time;
 	pres->pres_waiting_for_resilver = vre->vre_waiting_for_resilver;

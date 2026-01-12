@@ -2397,10 +2397,39 @@ dmu_objset_userspace_upgrade(objset_t *os)
 	dmu_objset_upgrade(os, dmu_objset_userspace_upgrade_cb);
 }
 
+static void
+dmu_objset_refresh_projectquota(objset_t *os)
+{
+	if (!spa_feature_is_enabled(os->os_spa, SPA_FEATURE_PROJECT_QUOTA))
+		return;
+
+	if (DMU_PROJECTUSED_DNODE(os) != NULL)
+		return;
+
+	int size = sizeof (objset_phys_t);
+	if (arc_buf_size(os->os_phys_buf) < size) {
+		arc_buf_t *buf = arc_alloc_buf(os->os_spa, &os->os_phys_buf,
+		    ARC_BUFC_METADATA, size);
+		memset(buf->b_data, 0, size);
+		memcpy(buf->b_data, os->os_phys_buf->b_data,
+		    arc_buf_size(os->os_phys_buf));
+		arc_buf_destroy(os->os_phys_buf, &os->os_phys_buf);
+		os->os_phys_buf = buf;
+		os->os_phys = os->os_phys_buf->b_data;
+	}
+
+	if (OBJSET_BUF_HAS_PROJECTUSED(os->os_phys_buf)) {
+		dnode_special_open(os, &os->os_phys->os_projectused_dnode,
+		    DMU_PROJECTUSED_OBJECT, &os->os_projectused_dnode);
+	}
+}
+
 static int
 dmu_objset_id_quota_upgrade_cb(objset_t *os)
 {
 	int err = 0;
+
+	dmu_objset_refresh_projectquota(os);
 
 	if (dmu_objset_userobjspace_present(os) &&
 	    dmu_objset_projectquota_present(os))

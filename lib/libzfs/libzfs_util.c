@@ -1180,7 +1180,7 @@ zfs_path_to_zhandle(libzfs_handle_t *hdl, const char *path, zfs_type_t argtype)
 		return (zfs_open(hdl, path, argtype));
 	}
 
-	if (getextmntent(path, &entry, &statbuf) != 0)
+	if (zfs_getextmntent(path, &entry, &statbuf) != 0)
 		return (NULL);
 
 	if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0) {

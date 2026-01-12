@@ -98,7 +98,7 @@ parse_pathname(const char *inpath, char *dataset, char *relpath,
 		return (-1);
 	}
 
-	if (getextmntent(fullpath, &mp, statbuf) != 0) {
+	if (zfs_getextmntent(fullpath, &mp, statbuf) != 0) {
 		(void) fprintf(stderr, "cannot find mountpoint for '%s'\n",
 		    fullpath);
 		return (-1);
