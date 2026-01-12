@@ -39,6 +39,7 @@
 #include <sys/zfs_ioctl.h>
 #include <sys/zfs_znode.h>
 #include <sys/zvol.h>
+#include <sys/dsl_bookmark.h>
 
 #ifdef _KERNEL
 #include <sys/zfs_quota.h>
@@ -775,6 +776,46 @@ zcp_get_written_prop(lua_State *state, dsl_pool_t *dp,
 	return (2);
 }
 
+static int
+zcp_get_bookmark_prop(lua_State *state, dsl_pool_t *dp,
+    const char *dataset_name, zfs_prop_t zfs_prop)
+{
+	zfs_bookmark_phys_t zbm = {0};
+	int error;
+
+	/* Check that the property is valid for bookmarks */
+	if (!zfs_prop_valid_for_type(zfs_prop, ZFS_TYPE_BOOKMARK, B_FALSE)) {
+		return (0);
+	}
+
+	error = dsl_bookmark_lookup(dp, dataset_name, NULL, &zbm);
+	if (error != 0) {
+		return (zcp_handle_error(state, dataset_name,
+		    zfs_prop_to_name(zfs_prop), error));
+	}
+
+	switch (zfs_prop) {
+	case ZFS_PROP_CREATION:
+		(void) lua_pushnumber(state, zbm.zbm_creation_time);
+		break;
+	case ZFS_PROP_CREATETXG:
+		(void) lua_pushnumber(state, zbm.zbm_creation_txg);
+		break;
+	case ZFS_PROP_GUID:
+		(void) lua_pushnumber(state, zbm.zbm_guid);
+		break;
+	case ZFS_PROP_IVSET_GUID:
+		(void) lua_pushnumber(state, zbm.zbm_ivset_guid);
+		break;
+	default:
+		return (0);
+	}
+
+	get_prop_src(state, "", zfs_prop);
+
+	return (2);
+}
+
 static int zcp_get_prop(lua_State *state);
 static const zcp_lib_info_t zcp_get_prop_info = {
 	.name = "get_prop",
@@ -827,6 +868,10 @@ zcp_get_prop(lua_State *state)
 	zfs_prop_t zfs_prop = zfs_name_to_prop(property_name);
 	/* Valid system property */
 	if (zfs_prop != ZPROP_INVAL) {
+		if (strchr(dataset_name, '#') != NULL) {
+			return (zcp_get_bookmark_prop(state, dp, dataset_name,
+			    zfs_prop));
+		}
 		return (zcp_get_system_prop(state, dp, dataset_name,
 		    zfs_prop));
 	}

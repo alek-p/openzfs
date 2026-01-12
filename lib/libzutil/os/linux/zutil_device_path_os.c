@@ -106,6 +106,13 @@ zfs_strip_partition(const char *path)
 			*part = '\0';
 	}
 
+	/*
+	 * Strip trailing .0 from the path (e.g. ata-X.0 -> ata-X).
+	 */
+	size_t len = strlen(tmp);
+	if (len > 2 && strcmp(tmp + len - 2, ".0") == 0)
+		tmp[len - 2] = '\0';
+
 	return (tmp);
 }
 

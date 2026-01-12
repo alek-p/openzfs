@@ -1,0 +1,22 @@
+args = ...
+pool = args[1]
+ds = args[2]
+snap = args[3]
+bk = args[4]
+
+val, src = zfs.get_prop(ds, "guid")
+assert(val ~= nil)
+
+val, src = zfs.get_prop(snap, "guid")
+assert(val ~= nil)
+
+val, src = zfs.get_prop(bk, "guid")
+assert(val ~= nil)
+
+val, src = zfs.get_prop(bk, "creation")
+assert(val ~= nil)
+
+val, src = zfs.get_prop(bk, "createtxg")
+assert(val ~= nil)
+
+return 0

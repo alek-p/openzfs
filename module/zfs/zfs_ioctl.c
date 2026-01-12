@@ -8189,10 +8189,18 @@ zfsdev_ioctl_common(uint_t vecnum, zfs_cmd_t *zc, int flag)
 		 * return an error.  In these cases, attempt to record what
 		 * was modified.
 		 */
+		const char *poolname = zc->zc_name;
+		char *tname = NULL;
+		if (innvl != NULL)
+			(void) nvlist_lookup_string(innvl, ZPOOL_CONFIG_TNAME,
+			    &tname);
+		if (tname != NULL)
+			poolname = tname;
+
 		if ((error == 0 ||
 		    (cmd == ZFS_IOC_CHANNEL_PROGRAM && error != EINVAL)) &&
 		    vec->zvec_allow_log &&
-		    spa_open(zc->zc_name, &spa, FTAG) == 0) {
+		    spa_open(poolname, &spa, FTAG) == 0) {
 			if (!nvlist_empty(outnvl)) {
 				size_t out_size = fnvlist_size(outnvl);
 				if (out_size > zfs_history_output_max) {
