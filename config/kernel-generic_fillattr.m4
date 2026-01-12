@@ -39,6 +39,15 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_GENERIC_FILLATTR], [
 		struct kstat *k = NULL;
 		generic_fillattr(idmap, 0, in, k);
 	])
+
+	ZFS_LINUX_TEST_SRC([simple_fillattr], [
+		#include <linux/fs.h>
+	],[
+		struct mnt_idmap *idmap = NULL;
+		struct inode *in = NULL;
+		struct kstat *k = NULL;
+		simple_fillattr(idmap, 0, in, k);
+	])
 ])
 
 AC_DEFUN([ZFS_AC_KERNEL_GENERIC_FILLATTR], [
@@ -66,6 +75,15 @@ AC_DEFUN([ZFS_AC_KERNEL_GENERIC_FILLATTR], [
 					[generic_fillattr requires struct user_namespace*])
 			],[
 				AC_MSG_RESULT([no])
+
+				AC_MSG_CHECKING([whether simple_fillattr exists])
+				ZFS_LINUX_TEST_RESULT([simple_fillattr], [
+					AC_MSG_RESULT([yes])
+					AC_DEFINE(HAVE_SIMPLE_FILLATTR, 1,
+						[simple_fillattr exists])
+				],[
+					AC_MSG_RESULT([no])
+				])
 			])
 		])
 	])

@@ -116,6 +116,8 @@ zpl_root_getattr_impl(const struct path *path, struct kstat *stat,
 	generic_fillattr(user_ns, ip, stat);
 #elif defined(HAVE_GENERIC_FILLATTR_IDMAP_REQMASK)
 	generic_fillattr(user_ns, request_mask, ip, stat);
+#elif defined(HAVE_SIMPLE_FILLATTR)
+	simple_fillattr(user_ns, request_mask, ip, stat);
 #else
 	(void) user_ns;
 #endif
@@ -461,6 +463,8 @@ zpl_snapdir_getattr_impl(const struct path *path, struct kstat *stat,
 	generic_fillattr(user_ns, ip, stat);
 #elif defined(HAVE_GENERIC_FILLATTR_IDMAP_REQMASK)
 	generic_fillattr(user_ns, request_mask, ip, stat);
+#elif defined(HAVE_SIMPLE_FILLATTR)
+	simple_fillattr(user_ns, request_mask, ip, stat);
 #else
 	(void) user_ns;
 #endif
@@ -616,6 +620,8 @@ zpl_shares_getattr_impl(const struct path *path, struct kstat *stat,
 		generic_fillattr(user_ns, path->dentry->d_inode, stat);
 #elif defined(HAVE_GENERIC_FILLATTR_IDMAP_REQMASK)
 	generic_fillattr(user_ns, request_mask, ip, stat);
+#elif defined(HAVE_SIMPLE_FILLATTR)
+	simple_fillattr(user_ns, request_mask, ip, stat);
 #else
 		(void) user_ns;
 #endif

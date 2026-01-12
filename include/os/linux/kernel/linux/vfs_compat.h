@@ -256,6 +256,9 @@ zpl_is_32bit_api(void)
 #elif defined(HAVE_GENERIC_FILLATTR_IDMAP_REQMASK)
 #define	zpl_generic_fillattr(idmap, rqm, ip, sp)	\
     generic_fillattr(idmap, rqm, ip, sp)
+#elif defined(HAVE_SIMPLE_FILLATTR)
+#define	zpl_generic_fillattr(idmap, rqm, ip, sp)	\
+    simple_fillattr(idmap, rqm, ip, sp)
 #elif defined(HAVE_GENERIC_FILLATTR_USERNS)
 #define	zpl_generic_fillattr(user_ns, ip, sp)	\
     generic_fillattr(user_ns, ip, sp)

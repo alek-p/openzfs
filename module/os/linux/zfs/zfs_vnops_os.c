@@ -1708,7 +1708,7 @@ out:
  *	RETURN:	0 (always succeeds)
  */
 int
-#ifdef HAVE_GENERIC_FILLATTR_IDMAP_REQMASK
+#if defined(HAVE_GENERIC_FILLATTR_IDMAP_REQMASK) || defined(HAVE_SIMPLE_FILLATTR)
 zfs_getattr_fast(zidmap_t *user_ns, u32 request_mask, struct inode *ip,
     struct kstat *sp)
 #else
@@ -1726,7 +1726,7 @@ zfs_getattr_fast(zidmap_t *user_ns, struct inode *ip, struct kstat *sp)
 
 	mutex_enter(&zp->z_lock);
 
-#ifdef HAVE_GENERIC_FILLATTR_IDMAP_REQMASK
+#if defined(HAVE_GENERIC_FILLATTR_IDMAP_REQMASK) || defined(HAVE_SIMPLE_FILLATTR)
 	zpl_generic_fillattr(user_ns, request_mask, ip, sp);
 #else
 	zpl_generic_fillattr(user_ns, ip, sp);

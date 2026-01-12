@@ -403,8 +403,15 @@ space_map_load_callback(space_map_entry_t *sme, void *arg)
 {
 	space_map_load_arg_t *smla = arg;
 	if (sme->sme_type == smla->smla_type) {
-		VERIFY3U(zfs_range_tree_space(smla->smla_rt) + sme->sme_run, <=,
-		    smla->smla_sm->sm_size);
+		if (zfs_range_tree_space(smla->smla_rt) + sme->sme_run >
+		    smla->smla_sm->sm_size) {
+			zfs_panic_recover("zfs: space map load: rt space %llx + "
+			    "run %llx > size %llx",
+			    (longlong_t)zfs_range_tree_space(smla->smla_rt),
+			    (longlong_t)sme->sme_run,
+			    (longlong_t)smla->smla_sm->sm_size);
+			return (0);
+		}
 		zfs_range_tree_add(smla->smla_rt, sme->sme_offset,
 		    sme->sme_run);
 	} else {
