@@ -2150,6 +2150,11 @@ spa_sync_time_logger(spa_t *spa, uint64_t txg)
 	if (!spa_writeable(spa)) {
 		return;
 	}
+
+	if (txg > spa_final_dirty_txg(spa)) {
+		return;
+	}
+
 	curtime = gethrestime_sec();
 	if (curtime < spa->spa_last_noted_txg_time + spa_note_txg_time) {
 		return;

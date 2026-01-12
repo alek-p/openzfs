@@ -329,8 +329,12 @@ vdev_indirect_mark_obsolete(vdev_t *vd, uint64_t offset, uint64_t size)
 	ASSERT3U(vd->vdev_indirect_config.vic_mapping_object, !=, 0);
 	ASSERT(vd->vdev_removing || vd->vdev_ops == &vdev_indirect_ops);
 	ASSERT(size > 0);
-	VERIFY(vdev_indirect_mapping_entry_for_offset(
-	    vd->vdev_indirect_mapping, offset) != NULL);
+	if (vdev_indirect_mapping_entry_for_offset(
+	    vd->vdev_indirect_mapping, offset) == NULL) {
+		zfs_dbgmsg("vdev_indirect_mark_obsolete: offset %llx "
+		    "not found in mapping", (longlong_t)offset);
+		return;
+	}
 
 	if (spa_feature_is_enabled(spa, SPA_FEATURE_OBSOLETE_COUNTS)) {
 		mutex_enter(&vd->vdev_obsolete_lock);

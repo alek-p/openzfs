@@ -348,7 +348,7 @@ zfs_range_tree_add_impl(void *arg, uint64_t start, uint64_t size, uint64_t fill)
 		uint64_t rstart = zfs_rs_get_start(rs, rt);
 		uint64_t rend = zfs_rs_get_end(rs, rt);
 		if (gap == 0) {
-			zfs_panic_recover("zfs: rt=%s: adding segment "
+			zfs_dbgmsg("zfs: rt=%s: adding segment "
 			    "(offset=%llx size=%llx) overlapping with existing "
 			    "one (offset=%llx size=%llx)",
 			    ZFS_RT_NAME(rt),
