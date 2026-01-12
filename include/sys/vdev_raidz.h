@@ -132,7 +132,8 @@ typedef struct vdev_raidz_expand {
 	/*
 	 * Total bytes to copy, captured at expansion start to prevent
 	 * progress from exceeding 100% when new data is written during
-	 * expansion.
+	 * expansion. This field is 0 for backward compatibility with older
+	 * pools that didn't capture this value at expansion start.
 	 */
 	uint64_t vre_bytes_to_copy;
 } vdev_raidz_expand_t;

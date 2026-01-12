@@ -79,7 +79,8 @@ typedef enum dsl_scan_flags {
 	DSF_SORTED_SCAN = 1<<2,	/* scan is using sorted (sequential) method */
 } dsl_scan_flags_t;
 
-#define	DSL_SCAN_FLAGS_MASK (DSF_VISIT_DS_AGAIN | DSF_SORTED_SCAN)
+#define	DSL_SCAN_FLAGS_MASK \
+	(DSF_VISIT_DS_AGAIN | DSF_SCRUB_PAUSED | DSF_SORTED_SCAN)
 
 typedef struct dsl_errorscrub_phys {
 	uint64_t dep_func; /* pool_scan_func_t */
