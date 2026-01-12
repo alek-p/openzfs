@@ -965,12 +965,14 @@ zfsctl_snapdir_remove(struct inode *dip, const char *name, cred_t *cr,
 	zfsvfs_t *zfsvfs = ITOZSB(dip);
 	char *snapname, *real;
 	int error;
+	boolean_t zfs_entered = B_FALSE;
 
 	if (!zfs_admin_snapshot)
 		return (SET_ERROR(EACCES));
 
 	if ((error = zfs_enter(zfsvfs, FTAG)) != 0)
 		return (error);
+	zfs_entered = B_TRUE;
 
 	snapname = kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
 	real = kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
@@ -992,14 +994,24 @@ zfsctl_snapdir_remove(struct inode *dip, const char *name, cred_t *cr,
 	if (error != 0)
 		goto out;
 
+	zfs_exit(zfsvfs, FTAG);
+	zfs_entered = B_FALSE;
 	error = zfsctl_snapshot_unmount(snapname, MNT_FORCE);
-	if ((error == 0) || (error == ENOENT))
-		error = dsl_destroy_snapshot(snapname, B_FALSE);
+	if (zfs_enter(zfsvfs, FTAG) == 0) {
+		zfs_entered = B_TRUE;
+		if ((error == 0) || (error == ENOENT))
+			error = dsl_destroy_snapshot(snapname, B_FALSE);
+	} else {
+		if (error == 0)
+			error = SET_ERROR(ENOENT);
+	}
+
 out:
 	kmem_free(snapname, ZFS_MAX_DATASET_NAME_LEN);
 	kmem_free(real, ZFS_MAX_DATASET_NAME_LEN);
 
-	zfs_exit(zfsvfs, FTAG);
+	if (zfs_entered)
+		zfs_exit(zfsvfs, FTAG);
 
 	return (error);
 }
@@ -1187,6 +1199,7 @@ zfsctl_snapshot_mount(struct path *path, int flags)
 	char *envp[] = { NULL };
 	int error;
 	struct path spath;
+	boolean_t zfs_entered = B_FALSE;
 
 	if (ip == NULL)
 		return (SET_ERROR(EISDIR));
@@ -1194,6 +1207,7 @@ zfsctl_snapshot_mount(struct path *path, int flags)
 	zfsvfs = ITOZSB(ip);
 	if ((error = zfs_enter(zfsvfs, FTAG)) != 0)
 		return (error);
+	zfs_entered = B_TRUE;
 
 	full_name = kmem_zalloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
 	full_path = kmem_zalloc(MAXPATHLEN, KM_SLEEP);
@@ -1298,7 +1312,17 @@ zfsctl_snapshot_mount(struct path *path, int flags)
 	argv[7] = options;
 	argv[8] = full_name;
 	argv[9] = full_path;
+
+	zfs_exit(zfsvfs, FTAG);
+	zfs_entered = B_FALSE;
 	error = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+	if (zfs_enter(zfsvfs, FTAG) == 0) {
+		zfs_entered = B_TRUE;
+	} else {
+		if (error == 0)
+			error = SET_ERROR(ENOENT);
+	}
+
 	if (error) {
 		/*
 		 * Mount failed - cleanup pending entry and signal waiters.
@@ -1367,7 +1391,8 @@ error:
 	kmem_free(full_name, ZFS_MAX_DATASET_NAME_LEN);
 	kmem_free(full_path, MAXPATHLEN);
 
-	zfs_exit(zfsvfs, FTAG);
+	if (zfs_entered)
+		zfs_exit(zfsvfs, FTAG);
 
 	return (error);
 }
