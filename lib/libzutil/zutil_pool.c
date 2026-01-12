@@ -34,28 +34,49 @@
 #include <libzutil.h>
 
 static void
-dump_ddt_stat(const ddt_stat_t *dds, int h)
+dump_ddt_stat(const ddt_stat_t *dds, int h, boolean_t literal)
 {
-	char refcnt[6];
-	char blocks[6], lsize[6], psize[6], dsize[6];
-	char ref_blocks[6], ref_lsize[6], ref_psize[6], ref_dsize[6];
+	char refcnt[32];
+	char blocks[32], lsize[32], psize[32], dsize[32];
+	char ref_blocks[32], ref_lsize[32], ref_psize[32], ref_dsize[32];
 
 	if (dds == NULL || dds->dds_blocks == 0)
 		return;
 
 	if (h == -1)
 		(void) strcpy(refcnt, "Total");
+	else if (literal)
+		(void) snprintf(refcnt, sizeof (refcnt), "%llu", 1ULL << h);
 	else
 		zfs_nicenum(1ULL << h, refcnt, sizeof (refcnt));
 
-	zfs_nicenum(dds->dds_blocks, blocks, sizeof (blocks));
-	zfs_nicebytes(dds->dds_lsize, lsize, sizeof (lsize));
-	zfs_nicebytes(dds->dds_psize, psize, sizeof (psize));
-	zfs_nicebytes(dds->dds_dsize, dsize, sizeof (dsize));
-	zfs_nicenum(dds->dds_ref_blocks, ref_blocks, sizeof (ref_blocks));
-	zfs_nicebytes(dds->dds_ref_lsize, ref_lsize, sizeof (ref_lsize));
-	zfs_nicebytes(dds->dds_ref_psize, ref_psize, sizeof (ref_psize));
-	zfs_nicebytes(dds->dds_ref_dsize, ref_dsize, sizeof (ref_dsize));
+	if (literal) {
+		(void) snprintf(blocks, sizeof (blocks), "%llu",
+		    (u_longlong_t)dds->dds_blocks);
+		(void) snprintf(lsize, sizeof (lsize), "%llu",
+		    (u_longlong_t)dds->dds_lsize);
+		(void) snprintf(psize, sizeof (psize), "%llu",
+		    (u_longlong_t)dds->dds_psize);
+		(void) snprintf(dsize, sizeof (dsize), "%llu",
+		    (u_longlong_t)dds->dds_dsize);
+		(void) snprintf(ref_blocks, sizeof (ref_blocks), "%llu",
+		    (u_longlong_t)dds->dds_ref_blocks);
+		(void) snprintf(ref_lsize, sizeof (ref_lsize), "%llu",
+		    (u_longlong_t)dds->dds_ref_lsize);
+		(void) snprintf(ref_psize, sizeof (ref_psize), "%llu",
+		    (u_longlong_t)dds->dds_ref_psize);
+		(void) snprintf(ref_dsize, sizeof (ref_dsize), "%llu",
+		    (u_longlong_t)dds->dds_ref_dsize);
+	} else {
+		zfs_nicenum(dds->dds_blocks, blocks, sizeof (blocks));
+		zfs_nicebytes(dds->dds_lsize, lsize, sizeof (lsize));
+		zfs_nicebytes(dds->dds_psize, psize, sizeof (psize));
+		zfs_nicebytes(dds->dds_dsize, dsize, sizeof (dsize));
+		zfs_nicenum(dds->dds_ref_blocks, ref_blocks, sizeof (ref_blocks));
+		zfs_nicebytes(dds->dds_ref_lsize, ref_lsize, sizeof (ref_lsize));
+		zfs_nicebytes(dds->dds_ref_psize, ref_psize, sizeof (ref_psize));
+		zfs_nicebytes(dds->dds_ref_dsize, ref_dsize, sizeof (ref_dsize));
+	}
 
 	(void) printf("%6s   %6s   %5s   %5s   %5s   %6s   %5s   %5s   %5s\n",
 	    refcnt,
@@ -67,7 +88,8 @@ dump_ddt_stat(const ddt_stat_t *dds, int h)
  * Print the DDT histogram and the column totals.
  */
 void
-zpool_dump_ddt(const ddt_stat_t *dds_total, const ddt_histogram_t *ddh)
+zpool_dump_ddt(const ddt_stat_t *dds_total, const ddt_histogram_t *ddh,
+    boolean_t literal)
 {
 	int h;
 
@@ -91,9 +113,9 @@ zpool_dump_ddt(const ddt_stat_t *dds_total, const ddt_histogram_t *ddh)
 	    "------", "-----", "-----", "-----");
 
 	for (h = 0; h < 64; h++)
-		dump_ddt_stat(&ddh->ddh_stat[h], h);
+		dump_ddt_stat(&ddh->ddh_stat[h], h, literal);
 
-	dump_ddt_stat(dds_total, -1);
+	dump_ddt_stat(dds_total, -1, literal);
 
 	(void) printf("\n");
 }

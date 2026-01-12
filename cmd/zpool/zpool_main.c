@@ -10491,7 +10491,7 @@ print_dedup_stats(zpool_handle_t *zhp, nvlist_t *config, boolean_t literal)
 	    (uint64_t **)&dds, &c) == 0);
 	verify(nvlist_lookup_uint64_array(config, ZPOOL_CONFIG_DDT_HISTOGRAM,
 	    (uint64_t **)&ddh, &c) == 0);
-	zpool_dump_ddt(dds, ddh);
+	zpool_dump_ddt(dds, ddh, literal);
 }
 
 #define	ST_SIZE	4096
@@ -11200,7 +11200,7 @@ zpool_do_status(int argc, char **argv)
 	};
 
 	/* check options */
-	while ((c = getopt_long(argc, argv, "c:jdDegiLpPstT:vx", long_options,
+	while ((c = getopt_long(argc, argv, "c:jdDE:egiLpPstT:vx", long_options,
 	    NULL)) != -1) {
 		switch (c) {
 		case 'c':
@@ -11234,6 +11234,29 @@ zpool_do_status(int argc, char **argv)
 			if (++cb.cb_dedup_stats  > 2)
 				cb.cb_dedup_stats = 2;
 			break;
+		case 'E': {
+			char *old = getenv("__ZFS_POOL_EXCLUDE");
+			char *new;
+			int len = strlen(optarg);
+
+			if (old != NULL)
+				len += strlen(old) + 1;
+
+			new = safe_malloc(len + 1);
+			if (old != NULL)
+				sprintf(new, "%s %s", old, optarg);
+			else
+				strcpy(new, optarg);
+
+			/* replace commas with spaces */
+			for (int i = 0; i < len; i++)
+				if (new[i] == ',')
+					new[i] = ' ';
+
+			setenv("__ZFS_POOL_EXCLUDE", new, 1);
+			free(new);
+			break;
+		}
 		case 'e':
 			cb.cb_print_unhealthy = B_TRUE;
 			break;
