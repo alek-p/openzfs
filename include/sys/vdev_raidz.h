@@ -129,6 +129,12 @@ typedef struct vdev_raidz_expand {
 	uint64_t vre_start_time;
 	uint64_t vre_end_time;
 	uint64_t vre_bytes_copied;
+	/*
+	 * Total bytes to copy, captured at expansion start to prevent
+	 * progress from exceeding 100% when new data is written during
+	 * expansion.
+	 */
+	uint64_t vre_bytes_to_copy;
 } vdev_raidz_expand_t;
 
 typedef struct vdev_raidz {

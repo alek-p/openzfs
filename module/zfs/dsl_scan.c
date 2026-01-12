@@ -628,6 +628,11 @@ dsl_scan_init(dsl_pool_t *dp, uint64_t txg)
 
 	memcpy(&scn->scn_phys_cached, &scn->scn_phys, sizeof (scn->scn_phys));
 
+	/* Restore scan method from persisted flags */
+	if (scn->scn_phys.scn_flags & DSF_SORTED_SCAN) {
+		scn->scn_is_sorted = B_TRUE;
+	}
+
 	/* reload the queue into the in-core state */
 	if (scn->scn_phys.scn_queue_obj != 0) {
 		zap_cursor_t zc;
@@ -1132,6 +1137,7 @@ dsl_scan_done(dsl_scan_t *scn, boolean_t complete, dmu_tx_t *tx)
 	if (scn->scn_is_sorted) {
 		scan_io_queues_destroy(scn);
 		scn->scn_is_sorted = B_FALSE;
+		scn->scn_phys.scn_flags &= ~DSF_SORTED_SCAN;
 
 		if (scn->scn_taskq != NULL) {
 			taskq_destroy(scn->scn_taskq);
@@ -4499,6 +4505,7 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 	 */
 	if (!zfs_scan_legacy) {
 		scn->scn_is_sorted = B_TRUE;
+		scn->scn_phys.scn_flags |= DSF_SORTED_SCAN;
 		if (scn->scn_last_checkpoint == 0)
 			scn->scn_last_checkpoint = ddi_get_lbolt();
 	}
