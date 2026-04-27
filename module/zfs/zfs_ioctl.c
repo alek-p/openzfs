@@ -1884,6 +1884,53 @@ zfs_ioc_pool_tryimport(zfs_cmd_t *zc)
 }
 
 /*
+ * Validate scrub-related ioctls: scan type, command bits, and optional
+ * date range must be mutually consistent.
+ */
+static int
+zfs_scrub_ioc_validate(uint64_t scan_type, uint64_t scan_cmd,
+    uint64_t date_start, uint64_t date_end)
+{
+	if (scan_type >= POOL_SCAN_FUNCS)
+		return (SET_ERROR(EINVAL));
+
+	if (scan_cmd & ~(POOL_SCRUB_NORMAL | POOL_SCRUB_PAUSE |
+	    POOL_SCRUB_FROM_LAST_TXG | POOL_SCRUB_THOROUGH))
+		return (SET_ERROR(EINVAL));
+
+	if ((scan_cmd & POOL_SCRUB_PAUSE) && (scan_cmd != POOL_SCRUB_PAUSE))
+		return (SET_ERROR(EINVAL));
+
+	if ((scan_cmd & POOL_SCRUB_NORMAL) && (scan_cmd & POOL_SCRUB_THOROUGH))
+		return (SET_ERROR(EINVAL));
+
+	if (scan_type != POOL_SCAN_SCRUB &&
+	    (date_start != 0 || date_end != 0))
+		return (SET_ERROR(EINVAL));
+
+	if (scan_type != POOL_SCAN_SCRUB &&
+	    (scan_cmd & POOL_SCRUB_FROM_LAST_TXG))
+		return (SET_ERROR(EINVAL));
+
+	if (scan_type != POOL_SCAN_SCRUB &&
+	    (scan_cmd & POOL_SCRUB_THOROUGH))
+		return (SET_ERROR(EINVAL));
+
+	if (scan_type == POOL_SCAN_RESILVER && scan_cmd != POOL_SCRUB_PAUSE &&
+	    (scan_cmd & ~POOL_SCRUB_NORMAL) != 0)
+		return (SET_ERROR(EINVAL));
+
+	if (scan_type == POOL_SCAN_NONE && scan_cmd != 0)
+		return (SET_ERROR(EINVAL));
+
+	if (scan_cmd == POOL_SCRUB_PAUSE &&
+	    (date_start != 0 || date_end != 0))
+		return (SET_ERROR(EINVAL));
+
+	return (0);
+}
+
+/*
  * inputs:
  * zc_name              name of the pool
  * zc_cookie            scan func (pool_scan_func_t)
@@ -1895,21 +1942,21 @@ zfs_ioc_pool_scan(zfs_cmd_t *zc)
 	spa_t *spa;
 	int error;
 
-	if (zc->zc_flags >= POOL_SCRUB_FLAGS_END)
-		return (SET_ERROR(EINVAL));
+	if ((error = zfs_scrub_ioc_validate(zc->zc_cookie, zc->zc_flags, 0,
+	    0)) != 0)
+		return (error);
 
 	if ((error = spa_open(zc->zc_name, &spa, FTAG)) != 0)
 		return (error);
 
-	if (zc->zc_flags == POOL_SCRUB_PAUSE)
+	if (zc->zc_flags & POOL_SCRUB_PAUSE) {
 		error = spa_scrub_pause_resume(spa, POOL_SCRUB_PAUSE);
-	else if (zc->zc_cookie == POOL_SCAN_NONE)
+	} else if (zc->zc_cookie == POOL_SCAN_NONE)
 		error = spa_scan_stop(spa);
 	else
-		error = spa_scan(spa, zc->zc_cookie);
+		error = spa_scan(spa, zc->zc_cookie, zc->zc_flags);
 
 	spa_close(spa, FTAG);
-
 	return (error);
 }
 
@@ -1939,13 +1986,14 @@ zfs_ioc_pool_scrub(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 	if (nvlist_lookup_uint64(innvl, "scan_command", &scan_cmd) != 0)
 		return (SET_ERROR(EINVAL));
 
-	if (scan_cmd >= POOL_SCRUB_FLAGS_END)
-		return (SET_ERROR(EINVAL));
-
 	if (nvlist_lookup_uint64(innvl, "scan_date_start", &date_start) != 0)
 		date_start = 0;
 	if (nvlist_lookup_uint64(innvl, "scan_date_end", &date_end) != 0)
 		date_end = 0;
+
+	if ((error = zfs_scrub_ioc_validate(scan_type, scan_cmd, date_start,
+	    date_end)) != 0)
+		return (error);
 
 	if ((error = spa_open(poolname, &spa, FTAG)) != 0)
 		return (error);
@@ -1954,13 +2002,13 @@ zfs_ioc_pool_scrub(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 		error = spa_scrub_pause_resume(spa, POOL_SCRUB_PAUSE);
 	} else if (scan_type == POOL_SCAN_NONE) {
 		error = spa_scan_stop(spa);
-	} else if (scan_cmd == POOL_SCRUB_FROM_LAST_TXG) {
-		error = spa_scan_range(spa, scan_type,
-		    spa_get_last_scrubbed_txg(spa), 0);
 	} else {
-		uint64_t txg_start, txg_end;
+		uint64_t txg_start = 0, txg_end = 0;
 
-		txg_start = txg_end = 0;
+		if (scan_cmd & POOL_SCRUB_FROM_LAST_TXG) {
+			txg_start = spa_get_last_scrubbed_txg(spa);
+		}
+
 		if (date_start != 0 || date_end != 0) {
 			mutex_enter(&spa->spa_txg_log_time_lock);
 			if (date_start != 0) {
@@ -1975,7 +2023,8 @@ zfs_ioc_pool_scrub(const char *poolname, nvlist_t *innvl, nvlist_t *outnvl)
 			mutex_exit(&spa->spa_txg_log_time_lock);
 		}
 
-		error = spa_scan_range(spa, scan_type, txg_start, txg_end);
+		error = spa_scan_range(spa, scan_type, txg_start, txg_end,
+		    scan_cmd);
 	}
 
 	spa_close(spa, FTAG);
