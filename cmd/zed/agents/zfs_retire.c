@@ -595,13 +595,15 @@ zfs_retire_recv(fmd_hdl_t *hdl, fmd_event_t *ep, nvlist_t *nvl,
 	    &state);
 
 	/*
-	 * If this is a resource notifying us of device removal then simply
-	 * check for an available spare and continue unless the device is a
-	 * l2arc vdev, in which case we just offline it.
+	 * If this is a resource notifying us of device removal or a device
+	 * that can't be opened (UNAVAIL), then check for an available spare
+	 * and continue unless the device is a l2arc vdev, in which case we
+	 * just offline it.
 	 */
 	if (strcmp(class, "resource.fs.zfs.removed") == 0 ||
 	    (strcmp(class, "resource.fs.zfs.statechange") == 0 &&
-	    (state == VDEV_STATE_REMOVED || state == VDEV_STATE_FAULTED))) {
+	    (state == VDEV_STATE_REMOVED || state == VDEV_STATE_FAULTED ||
+	    state == VDEV_STATE_CANT_OPEN))) {
 		const char *devtype;
 		char *devname;
 		boolean_t skip_removal = B_FALSE;

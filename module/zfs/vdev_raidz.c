@@ -5217,6 +5217,7 @@ vdev_raidz_attach_sync(void *arg, dmu_tx_t *tx)
 	vdrz->vn_vre.vre_end_time = 0;
 	vdrz->vn_vre.vre_state = DSS_SCANNING;
 	vdrz->vn_vre.vre_bytes_copied = 0;
+	vdrz->vn_vre.vre_bytes_to_copy = raidvd->vdev_stat.vs_alloc;
 
 	uint64_t state = vdrz->vn_vre.vre_state;
 	VERIFY0(zap_update(spa->spa_meta_objset,
@@ -5227,6 +5228,11 @@ vdev_raidz_attach_sync(void *arg, dmu_tx_t *tx)
 	VERIFY0(zap_update(spa->spa_meta_objset,
 	    raidvd->vdev_top_zap, VDEV_TOP_ZAP_RAIDZ_EXPAND_START_TIME,
 	    sizeof (start_time), 1, &start_time, tx));
+
+	uint64_t bytes_to_copy = vdrz->vn_vre.vre_bytes_to_copy;
+	VERIFY0(zap_update(spa->spa_meta_objset,
+	    raidvd->vdev_top_zap, VDEV_TOP_ZAP_RAIDZ_EXPAND_BYTES_TO_COPY,
+	    sizeof (bytes_to_copy), 1, &bytes_to_copy, tx));
 
 	(void) zap_remove(spa->spa_meta_objset,
 	    raidvd->vdev_top_zap, VDEV_TOP_ZAP_RAIDZ_EXPAND_END_TIME, tx);
@@ -5249,6 +5255,7 @@ vdev_raidz_load(vdev_t *vd)
 	uint64_t start_time = 0;
 	uint64_t end_time = 0;
 	uint64_t bytes_copied = 0;
+	uint64_t bytes_to_copy = 0;
 
 	if (vd->vdev_top_zap != 0) {
 		err = zap_lookup(vd->vdev_spa->spa_meta_objset,
@@ -5274,6 +5281,12 @@ vdev_raidz_load(vdev_t *vd)
 		    sizeof (bytes_copied), 1, &bytes_copied);
 		if (err != 0 && err != ENOENT)
 			return (err);
+
+		err = zap_lookup(vd->vdev_spa->spa_meta_objset,
+		    vd->vdev_top_zap, VDEV_TOP_ZAP_RAIDZ_EXPAND_BYTES_TO_COPY,
+		    sizeof (bytes_to_copy), 1, &bytes_to_copy);
+		if (err != 0 && err != ENOENT)
+			return (err);
 	}
 
 	/*
@@ -5285,6 +5298,7 @@ vdev_raidz_load(vdev_t *vd)
 	vdrz->vn_vre.vre_start_time = start_time;
 	vdrz->vn_vre.vre_end_time = end_time;
 	vdrz->vn_vre.vre_bytes_copied = bytes_copied;
+	vdrz->vn_vre.vre_bytes_to_copy = bytes_to_copy;
 
 	return (0);
 }
@@ -5319,7 +5333,14 @@ spa_raidz_expand_get_stats(spa_t *spa, pool_raidz_expand_stat_t *pres)
 	pres->pres_expanding_vdev = vre->vre_vdev_id;
 
 	vdev_t *vd = vdev_lookup_top(spa, vre->vre_vdev_id);
-	pres->pres_to_reflow = vd->vdev_stat.vs_alloc;
+	/*
+	 * Use the persisted bytes_to_copy value if available (captured at
+	 * expansion start) to prevent progress from exceeding 100% when new
+	 * data is written during expansion. Fall back to current vs_alloc
+	 * for backward compatibility with older pools.
+	 */
+	pres->pres_to_reflow = vre->vre_bytes_to_copy != 0 ?
+	    vre->vre_bytes_to_copy : vd->vdev_stat.vs_alloc;
 
 	mutex_enter(&vre->vre_lock);
 	pres->pres_reflowed = vre->vre_bytes_copied;
