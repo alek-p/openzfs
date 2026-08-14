@@ -1720,4 +1720,8 @@ zfs_sha512_power8:
 .long	0x14151617,0x10111213
 .long	0x04050607,0x00010203
 
+#if defined(__ELF__)
+	.section .note.GNU-stack,"",%progbits
+#endif
+
 #endif

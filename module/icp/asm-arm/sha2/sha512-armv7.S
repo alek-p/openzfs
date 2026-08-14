@@ -1825,4 +1825,9 @@ zfs_sha512_block_neon:
 	bx	lr				@ .word	0xe12fff1e
 .size	zfs_sha512_block_neon,.-zfs_sha512_block_neon
 #endif // #if __ARM_ARCH__ >= 7
+
+#if defined(__ELF__)
+	.section .note.GNU-stack,"",%progbits
+#endif // #if defined(__ELF__)
+
 #endif // #if defined(__arm__)

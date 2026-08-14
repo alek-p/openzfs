@@ -2010,4 +2010,8 @@ zfs_sha256_block_neon:
 	ret
 .size	zfs_sha256_block_neon,.-zfs_sha256_block_neon
 
+#if defined(__ELF__)
+	.section .note.GNU-stack,"",%progbits
+#endif
+
 #endif

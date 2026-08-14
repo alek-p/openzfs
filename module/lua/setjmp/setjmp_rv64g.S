@@ -90,3 +90,7 @@ ENTRY(longjmp)
 	mv	a0, a1
 	ret
 END(longjmp)
+
+#ifdef __ELF__
+.section .note.GNU-stack,"",%progbits
+#endif

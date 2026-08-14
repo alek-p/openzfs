@@ -2971,4 +2971,8 @@ zfs_sha512_ppc:
 .long	0x3ad6faec,0x5fcb6fab
 .long	0x4a475817,0x6c44198c
 
+#if defined(__ELF__)
+	.section .note.GNU-stack,"",%progbits
+#endif
+
 #endif

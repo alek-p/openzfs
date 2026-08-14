@@ -1568,4 +1568,9 @@ zfs_sha512_block_armv8:
 	ldr		x29,[sp],#16
 	ret
 .size	zfs_sha512_block_armv8,.-zfs_sha512_block_armv8
+
+#if defined(__ELF__)
+	.section .note.GNU-stack,"",%progbits
+#endif
+
 #endif

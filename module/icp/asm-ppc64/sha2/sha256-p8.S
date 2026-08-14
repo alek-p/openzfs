@@ -1518,4 +1518,9 @@ zfs_sha256_power8:
 .long	0x10111213,0x10111213,0x10111213,0x00010203
 .long	0x10111213,0x10111213,0x04050607,0x00010203
 .long	0x10111213,0x08090a0b,0x04050607,0x00010203
+
+#if defined(__ELF__)
+	.section .note.GNU-stack,"",%progbits
+#endif
+
 #endif

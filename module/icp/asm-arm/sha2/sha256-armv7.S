@@ -2772,4 +2772,9 @@ zfs_sha256_block_armv8:
 .size	zfs_sha256_block_armv8,.-zfs_sha256_block_armv8
 
 #endif // #if __ARM_ARCH__ >= 7
+
+#if defined(__ELF__)
+	.section .note.GNU-stack,"",%progbits
+#endif // #if defined(__ELF__)
+
 #endif // #if defined(__arm__)
